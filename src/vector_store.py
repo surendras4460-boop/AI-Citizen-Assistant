@@ -1,8 +1,8 @@
 """Vector database index management and similarity retrieval backed by ChromaDB."""
 from __future__ import annotations
 
+import hashlib
 import logging
-import uuid
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -70,7 +70,14 @@ class VectorIndex:
 
         if self._collection is not None:
             docs = [c.text for c in chunks]
-            ids = [f"{self.name}_{i}_{uuid.uuid4().hex[:6]}" for i in range(len(chunks))]
+            # Deterministic IDs make re-indexing idempotent (no duplicates on app restart).
+            ids, seen = [], {}
+            for c in chunks:
+                base = hashlib.sha1(
+                    (c.text + "|" + str(c.meta.get("source", "")) + "|" + str(c.meta.get("page", ""))).encode("utf-8")
+                ).hexdigest()[:16]
+                n = seen.get(base, 0); seen[base] = n + 1
+                ids.append(f"{self.name}_{base}_{n}")
             metas: List[Dict[str, Any]] = []
 
             for c in chunks:
@@ -84,7 +91,7 @@ class VectorIndex:
 
             embeddings = self.embedder.embed_texts(docs)
             try:
-                self._collection.add(
+                self._collection.upsert(
                     ids=ids,
                     documents=docs,
                     embeddings=embeddings,

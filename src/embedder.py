@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import zlib
 from typing import List, Optional
 
 import numpy as np
@@ -102,7 +103,7 @@ class SentenceEmbedder:
         if not tokens:
             return vec.tolist()
         for tok in tokens:
-            h = hash(tok) % dim
+            h = zlib.crc32(tok.encode('utf-8')) % dim  # stable across processes (built-in hash() is salted)
             vec[h] += 1.0
         norm = np.linalg.norm(vec)
         if norm > 0:

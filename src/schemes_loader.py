@@ -73,9 +73,13 @@ def schemes_to_chunks(df: pd.DataFrame) -> List[Chunk]:
         details = clean_text(r.get("details"))
         details_hi = clean_text(r.get("details_hi"))
         benefits = clean_text(r.get("benefits"))
+        benefits_hi = clean_text(r.get("benefits_hi")) or benefits
         eligibility = clean_text(r.get("eligibility"))
+        eligibility_hi = clean_text(r.get("eligibility_hi")) or eligibility
         application = clean_text(r.get("application"))
+        application_hi = clean_text(r.get("application_hi")) or application
         documents = clean_text(r.get("documents"))
+        documents_hi = clean_text(r.get("documents_hi")) or documents
 
         # English scheme chunk
         en_parts = [
@@ -104,10 +108,10 @@ def schemes_to_chunks(df: pd.DataFrame) -> List[Chunk]:
                 f"योजना का नाम: {s_name_hi or s_name}",
                 f"श्रेणी: {cat} (स्तर: {level})",
                 f"विवरण: {details_hi or details}" if (details_hi or details) else "",
-                f"लाभ: {benefits}" if benefits else "",
-                f"पात्रता: {eligibility}" if eligibility else "",
-                f"आवेदन प्रक्रिया: {application}" if application else "",
-                f"आवश्यक दस्तावेज: {documents}" if documents else ""
+                f"लाभ: {benefits_hi}" if benefits_hi else "",
+                f"पात्रता: {eligibility_hi}" if eligibility_hi else "",
+                f"आवेदन प्रक्रिया: {application_hi}" if application_hi else "",
+                f"आवश्यक दस्तावेज: {documents_hi}" if documents_hi else ""
             ]
             hi_text = "\n".join([p for p in hi_parts if p])
             chunks.append(Chunk(

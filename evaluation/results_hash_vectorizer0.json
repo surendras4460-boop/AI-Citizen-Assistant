@@ -1,0 +1,52 @@
+{
+ "E1_EN": {
+  "n": 20,
+  "hit1": 0.7,
+  "hit3": 0.95,
+  "hit5": 0.95,
+  "mrr": 0.8055555555555556
+ },
+ "E1_HI": {
+  "n": 20,
+  "hit1": 0.5,
+  "hit3": 0.85,
+  "hit5": 0.95,
+  "mrr": 0.6988095238095238
+ },
+ "E1_top1_is_hindi_chunk_for_HI_queries": 1.0,
+ "E1_top1_is_hindi_chunk_for_EN_queries": 0.0,
+ "E2_chunks": 10,
+ "E2_skipped_pages": {
+  "scanned_only.pdf": [
+   1
+  ]
+ },
+ "E2_page_level_user_index_only": {
+  "n": 20,
+  "hit1": 0.5,
+  "hit3": 0.75,
+  "hit5": 0.8,
+  "mrr": 0.6402777777777777
+ },
+ "E2_page_level_with_schemes_index": {
+  "n": 20,
+  "hit1": 0.25,
+  "hit3": 0.5,
+  "hit5": 0.7,
+  "mrr": 0.4231517094017094
+ },
+ "E2_example_page_label": "Page 1",
+ "E3_auroc_user_index": 0.78,
+ "E3_mean_top1_answerable": 0.2529,
+ "E3_mean_top1_absent": 0.1659,
+ "E3_min_answerable": 0.057,
+ "E3_max_absent": 0.29,
+ "E3_best_threshold_accuracy": 0.8,
+ "E3_best_threshold": 0.184,
+ "E4_retrieval_ms_median": 458.79045850000466,
+ "E4_retrieval_ms_p95": 515.754912000034,
+ "E4_index_build_s_for_user_docs": 0.12349500499999522,
+ "backend_nominal": "chroma_onnx",
+ "backend_actual": "hash_vectorizer",
+ "scheme_chunks": 20
+}

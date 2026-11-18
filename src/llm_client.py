@@ -6,6 +6,9 @@ import os
 from typing import List, Optional
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 from src.config import GEMINI_MODELS_CASCADE, REQUEST_TIMEOUT_SECONDS
 
@@ -41,12 +44,10 @@ class GeminiClient:
         # 1. Direct REST API calls (fastest, most consistent across versions)
         for model in GEMINI_MODELS_CASCADE:
             try:
-                url = (
-                    f"https://generativelanguage.googleapis.com/v1beta/models/"
-                    f"{model}:generateContent?key={key}"
-                )
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+                headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
                 payload = {"contents": [{"parts": [{"text": prompt}]}]}
-                res = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT_SECONDS)
+                res = requests.post(url, headers=headers, json=payload, timeout=REQUEST_TIMEOUT_SECONDS)
                 if res.status_code == 200:
                     data = res.json()
                     candidates = data.get("candidates", [])

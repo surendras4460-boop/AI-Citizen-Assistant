@@ -1,0 +1,208 @@
+{
+ "answerable": [
+  {
+   "q": "Which institute is the applicant pursuing her engineering degree from?",
+   "truth": [
+    [
+     "resume_asha_verma.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "List the programming languages and analytics tools she is skilled in.",
+   "truth": [
+    [
+     "resume_asha_verma.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "How can the candidate be contacted by email?",
+   "truth": [
+    [
+     "resume_asha_verma.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What projects has the candidate worked on?",
+   "truth": [
+    [
+     "resume_asha_verma.pdf",
+     2
+    ]
+   ]
+  },
+  {
+   "q": "Does she hold any cloud computing certification?",
+   "truth": [
+    [
+     "resume_asha_verma.pdf",
+     2
+    ]
+   ]
+  },
+  {
+   "q": "Has she won any competition?",
+   "truth": [
+    [
+     "resume_asha_verma.pdf",
+     2
+    ]
+   ]
+  },
+  {
+   "q": "How many marks did she get in Mathematics in her secondary school examination?",
+   "truth": [
+    [
+     "marksheet_class10.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What percentage did she secure in the tenth grade?",
+   "truth": [
+    [
+     "marksheet_class10.pdf",
+     1
+    ],
+    [
+     "resume_asha_verma.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What was her roll number for the Class 10 examination?",
+   "truth": [
+    [
+     "marksheet_class10.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "Which stream did she study in senior secondary school?",
+   "truth": [
+    [
+     "marksheet_class12.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What was her roll number in the twelfth standard exam?",
+   "truth": [
+    [
+     "marksheet_class12.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "How many marks did she score in Physics in Class 12?",
+   "truth": [
+    [
+     "marksheet_class12.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What SGPA did she obtain in the third semester?",
+   "truth": [
+    [
+     "btech_gradecard.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What is her cumulative grade point average after the sixth semester?",
+   "truth": [
+    [
+     "btech_gradecard.pdf",
+     2
+    ],
+    [
+     "resume_asha_verma.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "Which subject got the weakest grade in semester 5?",
+   "truth": [
+    [
+     "btech_gradecard.pdf",
+     2
+    ]
+   ]
+  },
+  {
+   "q": "What is the certified yearly income of the family?",
+   "truth": [
+    [
+     "income_certificate.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "Until when is the income certificate valid?",
+   "truth": [
+    [
+     "income_certificate.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "For how many years has she been living in her village?",
+   "truth": [
+    [
+     "domicile_certificate.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What is the certificate number of the residence proof?",
+   "truth": [
+    [
+     "domicile_certificate.pdf",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "What is the name of the applicant's father?",
+   "truth": [
+    [
+     "income_certificate.pdf",
+     1
+    ],
+    [
+     "domicile_certificate.pdf",
+     1
+    ]
+   ]
+  }
+ ],
+ "absent": [
+  "What is the applicant's Aadhaar number?",
+  "What is her PAN card number?",
+  "What is her bank account number?",
+  "Which caste category does she belong to?",
+  "What is her blood group?",
+  "What is her passport number?",
+  "Does she have a driving licence?",
+  "What is the name of her spouse?",
+  "What is her ration card number?",
+  "What is her monthly stipend?"
+ ]
+}

@@ -1,0 +1,280 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=blue,
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{AI-Powered Intelligent Citizen Assistant Using Retrieval-Augmented Generation and Personal Document Intelligence}
+
+\author{\IEEEauthorblockN{Harshit, Roshni, Shazeb, Anushka}
+\IEEEauthorblockA{\textit{School of Computer Science and Engineering} \\
+\textit{IILM University}\\
+Greater Noida, Uttar Pradesh, India \\
+Supervised by: Mr. Hilal Ahmad Shah}
+}
+
+\maketitle
+
+\begin{abstract}
+Applying for scholarships and government schemes in India requires citizens to read lengthy guideline documents and to check manually whether their own records, such as resumes, marksheets, and certificates, meet the stated requirements. General-purpose chatbots are not grounded in a user's own files and may produce unsupported answers. This paper presents the AI Citizen Assistant, a web-based Retrieval-Augmented Generation (RAG) system that answers questions over two knowledge sources at once: PDFs uploaded by the citizen at runtime and a bilingual (English and Hindi) dataset of ten government schemes. Uploaded PDFs are read page by page, split into 500-character chunks tagged with filename and page number, and embedded locally with all-MiniLM-L6-v2 into a session-isolated ChromaDB collection, while the scheme records are indexed in a persistent collection. Both indexes are searched with cosine similarity and merged into a single ranked list that is passed to a Gemini model under a prompt that restricts answers to the retrieved context, requires a fixed ``not found'' reply, and asks the model to separate available from missing documents. We position the system against six related RAG assistants and evaluate its retrieval stage on a controlled test set of synthetic citizen documents and 20 parallel English and Hindi scheme queries. Comparative empirical results are reported for both the implementation's lexical hashing fallback and the local all-MiniLM-L6-v2 dense embedding backend. The study also exposes practical implementation challenges, including silent embedding fallback, non-reproducible hashing, duplicate re-indexing on restart, and cross-lingual performance disparities, presenting verified engineering remedies for each.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Retrieval-Augmented Generation (RAG), Large Language Models, Document Question Answering, Semantic Search, Sentence Embeddings, ChromaDB, Government Schemes, Hindi, Streamlit.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Access to public welfare schemes, scholarships, and educational opportunities in India depends heavily on documentation. Applicants must read lengthy guideline documents, identify the eligibility criteria and required certificates, and then verify whether their own records, such as marksheets, resumes, and certificates, satisfy those requirements. This process is manual, time-consuming, and error-prone, particularly for first-time applicants who may not be familiar with the formal language of official notifications. A natural question therefore arises: can citizens be assisted in understanding their own documents and the requirements they must meet, without having to search through every page themselves?
+
+Conventional approaches to this problem offer only partial support. Keyword search within a PDF can locate a term but cannot interpret a question or relate information across several documents. General-purpose conversational assistants can answer questions fluently, yet they are not grounded in the user's own files and may produce plausible but unsupported statements, a behavior widely described as hallucination [1]. In addition, citizen documents often contain sensitive personal information, which makes it important to keep indexing and retrieval under the application's control wherever possible. In the present system, embedding and indexing run locally, whereas answer generation calls a hosted language model; this boundary is discussed in Section~III.
+
+Retrieval-Augmented Generation (RAG) offers a practical way to address these limitations [2], [3]. Instead of relying solely on the knowledge stored in a language model, a RAG system retrieves passages relevant to a query from a document collection and supplies them to the generator as context. Advances in sentence-level embedding models [4] allow such passages to be matched with user questions by semantic similarity rather than exact keywords, and these models are small enough to run locally [5]. Because the retrieved passages originate from identifiable files, the generated answer can be traced back to its sources, which is essential when users must verify information before acting on it.
+
+Applying RAG to citizen documents nevertheless introduces specific challenges. Documents are uploaded at runtime, so the system cannot depend on a fixed corpus or pre-built index. Answers must be attributable to a particular file and page so that users can check them. The system must also separate what is actually present in the uploaded records from what is merely required by a scheme, since wrongly claiming that a certificate is available could mislead an applicant. Finally, real-world PDFs vary in quality, including scanned certificates and table-based marksheets that text extraction tools handle poorly.
+
+To address these challenges, this paper presents the AI Citizen Assistant, a web-based RAG system for personal document understanding and scheme-document comparison. The system draws on two knowledge sources. The first is the set of PDF files that the citizen uploads at runtime; text is extracted page by page, divided into overlapping chunks of 500 characters with a 50-character overlap, tagged with the source filename and page number, embedded locally with all-MiniLM-L6-v2, and stored in an in-memory ChromaDB collection that is recreated whenever the set of uploaded files changes. The second is a bilingual dataset of ten government schemes, converted into English and Hindi chunks and kept in a persistent ChromaDB collection. For each question both indexes are searched with cosine similarity, the hits are merged by score into a single list of at most 20 passages, and the list is combined with the last six conversation messages into a prompt for the Gemini language model. The prompt restricts the answer to the supplied context and defines a fixed fallback sentence for missing information.
+
+The system provides three functions. A document analysis mode summarizes all uploaded records into seven structured sections and reports ``not found'' for anything absent. A conversational question-answering mode answers questions in English, Hindi, or mixed language over the uploaded files and the scheme dataset, and, through a standing prompt rule, lists which documents required by a scheme are available in the uploaded files and which are missing. A scheme explorer lets users browse the dataset by category and level in either language. The interface shows the eight highest-ranked retrieved passages with filename, page, and similarity score so that the user can check the evidence.
+
+The main contributions of this work are as follows:
+\begin{enumerate}
+\item An end-to-end RAG pipeline that merges a runtime, session-isolated index of citizen documents with a persistent bilingual scheme index while keeping filename and page metadata from extraction to the displayed sources.
+\item A grounded prompting strategy that restricts responses to retrieved content, defines a fixed fallback reply, and separates available from missing documents in scheme eligibility checks.
+\item A reproducible retrieval study on synthetic citizen documents and parallel English and Hindi scheme queries, measuring scheme retrieval, page-level retrieval, similarity-score separation, and latency across both dense and lexical embedding backends.
+\item A candid analysis of implementation findings, namely silent embedding fallback, non-reproducible hashing, duplicate re-indexing on restart, weaker Hindi retrieval, and API key exposure, together with verified architectural remedies.
+\end{enumerate}
+
+The remainder of this paper is organized as follows. Section~II reviews related work, Section~III describes the system architecture and methodology, Section~IV presents the experimental setup and results, Section~V discusses limitations and future work, and Section~VI concludes.
+
+\section{Literature Review}
+Research on document-grounded question answering has gradually moved from keyword-based retrieval towards systems that combine semantic search with generative language models. This section first outlines the foundations on which such systems rest, then reviews six Retrieval-Augmented Generation (RAG) systems that are closest to the present work: an AI-powered study assistant for educational documents, three citizen-facing legal assistants (Kazakhstan, Mauritius, and India), a chatbot for government welfare schemes, and a conversational interface to open government data. The section concludes with a comparison and the gap that the proposed system addresses.
+
+\subsection{Foundations of RAG-Based Assistants}
+Large language models generate fluent answers, but they depend on knowledge stored in their parameters and may produce statements that are not supported by any source [1]. RAG was proposed to reduce this problem by retrieving passages from an external collection and supplying them to the generator as context [2], and later surveys describe how retrieval, augmentation, and generation have become the standard modular pattern for grounded applications [3]. Sentence-level embedding models make this retrieval practical, because passages and questions can be compared by semantic similarity instead of exact keyword overlap, and compact models can be run locally [4], [5]. These three ideas, namely grounding, semantic retrieval, and local embedding, form the common basis of the systems reviewed below.
+
+\subsection{RAG for Study Materials}
+Sreevidya and Rajeshwari [6] propose an AI-powered study assistant based on RAG. Their framework allows users to upload educational documents such as textbooks, lecture notes, research papers, and study guides, combining semantic retrieval with generative AI to produce context-aware answers. However, its emphasis is on supporting student learning, not on checking personal credential documents against government scheme guidelines.
+
+\subsection{RAG for Citizen-Facing Legal Assistance}
+Mukazhanov et al. [7] develop a multilingual AI legal assistant based on RAG for Kazakhstan legal statutes, demonstrating the necessity of metadata-tagged chunks and comparing embedding models. Mohamed et al. [8] build a legal RAG chatbot for Mauritius legislation using Chroma and hosted LLMs. In the Indian context, Sandeep et al. [9] propose VakilSeva, combining legal document drafting, statute databases, and OCR. While relevant, these platforms focus on statutory research and legal drafting rather than cross-referencing citizen credentials against welfare eligibility criteria.
+
+\subsection{RAG for Government Scheme Information}
+Vishwaanth et al. [10] present SchemeAssist, a RAG chatbot answering citizen queries over curated government scheme portals. While conceptually closest to this work, SchemeAssist queries a static scheme corpus without ingesting the citizen's own credentials or verifying missing documents.
+
+\subsection{RAG over Open Government Data}
+Ali et al. [11] study natural language interfaces to open government data portals, noting the critical pitfall of relying on LLMs for exact numeric thresholds and calculations.
+
+\begin{table*}[t]
+\caption{Comparison of Related RAG Systems and the Proposed System}
+\label{tab:comparison}
+\centering
+\small
+\begin{tabular}{p{3.2cm}p{3.2cm}p{1.8cm}p{2.2cm}p{2.0cm}p{2.2cm}p{1.8cm}}
+\hline
+\textbf{System} & \textbf{Knowledge Source} & \textbf{User Uploads} & \textbf{Source Citation} & \textbf{Scheme vs. Own Records} & \textbf{Structured Summary} & \textbf{Evaluation} \\
+\hline
+Study assistant [6] & User-supplied study material & Yes & -- & No & -- & -- \\
+Kazakhstan legal [7] & 101k laws \& court decisions & No & Article level & No & No & Automatic + Expert \\
+Mauritius legal [8] & 46 acts and regulations & No & Yes (sources shown) & No & No & -- \\
+VakilSeva [9] & Legal databases, OCR hard copies & -- & -- & No & No & -- \\
+SchemeAssist [10] & Curated scheme documents & No & Source ref stored & No & No & Qualitative \\
+Talk to Open Data [11] & Greek open datasets via API & Dataset select & -- & No & No & Pitfall analysis \\
+\textbf{Proposed (this work)} & \textbf{User PDFs + bilingual schemes} & \textbf{Yes} & \textbf{File, page, similarity} & \textbf{Yes (prompt-level)} & \textbf{Yes (7 sections)} & \textbf{Retrieval study} \\
+\hline
+\end{tabular}
+\end{table*}
+
+\section{System Architecture and Methodology}
+The AI Citizen Assistant is implemented as a web-based RAG application in Python with Streamlit. It builds a temporary runtime index from uploaded citizen PDFs, combines it with a persistent index of government schemes, answers queries using retrieved context, and reports source file and page citations.
+
+\subsection{Overall System Architecture}
+Fig.~\ref{fig:arch} illustrates the data flow. The architecture decouples local feature extraction from external generation, ensuring personal document privacy. Table~\ref{tab:stack} summarizes the implementation stack.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=2pt, align=center, font=\scriptsize, minimum width=3.0cm, minimum height=0.95cm},
+  arr/.style={-{Stealth[length=2mm]}, thick},
+  node distance=0.55cm]
+\node[box] (a1) {PDF upload\\(Streamlit)};
+\node[box, right=of a1] (a2) {Text extraction\\(pypdf, page by page)};
+\node[box, right=of a2] (a3) {Chunking (500/50) +\\filename and page tags};
+\node[box, right=of a3] (a4) {Embedding\\(all-MiniLM-L6-v2)};
+\node[box, right=of a4] (a5) {Session index\\(ChromaDB, in memory)};
+\node[box, below=0.9cm of a1] (s1) {Schemes CSV\\(10 schemes, EN + HI)};
+\node[box, right=of s1] (s2) {20 chunks\\(1 EN + 1 HI per scheme)};
+\node[box, right=of s2] (s3) {Embedding\\(same model)};
+\node[box, right=of s3] (s4) {Scheme index\\(ChromaDB, persistent)};
+\node[box, below=0.9cm of s1] (b1) {Question\\+ last 6 messages};
+\node[box, right=of b1] (b2) {Query embedding; search both\\indexes (cosine); merge, $k\le 20$};
+\node[box, right=of b2] (b3) {Grounded prompt\\(rules + history + context)};
+\node[box, right=of b3] (b4) {Gemini model cascade\\(REST, then SDK)};
+\node[box, right=of b4] (b5) {Answer + top-8\\sources with scores};
+\foreach \i/\j in {a1/a2,a2/a3,a3/a4,a4/a5,s1/s2,s2/s3,s3/s4,b1/b2,b2/b3,b3/b4,b4/b5}
+  \draw[arr] (\i) -- (\j);
+\end{tikzpicture}
+\caption{Overall architecture. Top row: runtime indexing of user PDFs. Middle row: indexing of the scheme dataset. Bottom row: grounded question answering merging both vector collections.}
+\label{fig:arch}
+\end{figure*}
+
+\begin{table}[t]
+\caption{Components of the Proposed System}
+\label{tab:stack}
+\centering
+\small
+\begin{tabular}{p{2.2cm}p{3.2cm}p{2.4cm}}
+\hline
+\textbf{Component} & \textbf{Technology} & \textbf{Role}\\
+\hline
+Interface & Streamlit, three tabs & Ask, documents, explorer\\
+PDF parsing & pypdf & Page-wise text extraction\\
+Chunking & RecursiveCharacterSplitter & 500 / 50 characters\\
+Embedding & all-MiniLM-L6-v2 (384-d) & Local dense vectorization\\
+Vector store & ChromaDB, cosine space & Runtime \& persistent indexes\\
+Language model & Gemini (3.5-flash-lite / 3.8) & Grounded QA \& profiling\\
+Data & schemes.csv (10 schemes) & Bilingual welfare dataset\\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Document Ingestion and Preprocessing}
+Each uploaded PDF is parsed page by page with \texttt{pypdf}. Pages without extractable text are skipped and reported. Text pages are divided using \texttt{RecursiveCharacterTextSplitter} (chunk size 500, overlap 50). Because segmentation operates per page, no chunk crosses a page boundary, ensuring unambiguous source citations:
+\begin{equation}
+C = \{(c_i, m_i)\}_{i=1}^{N}, \quad m_i = (f_i, p_i)
+\end{equation}
+
+\subsection{Embedding and Idempotent Indexing}
+Chunks are encoded into 384-dimensional dense vectors $\mathbf{e}_i = \phi(c_i) \in \mathbb{R}^{384}$ using \texttt{all-MiniLM-L6-v2}. To prevent duplicate entries upon application restart in persistent storage, chunk identifiers are computed deterministically:
+\begin{equation}
+\mathrm{ID}(c_i) = \mathrm{SHA1}(c_i \,\|\, f_i \,\|\, p_i)_{[:16]}
+\end{equation}
+Collections use cosine distance $d(\mathbf{u}, \mathbf{v}) = 1 - \frac{\mathbf{u}\cdot\mathbf{v}}{\|\mathbf{u}\|\|\mathbf{v}\|}$, with similarity score mapped via $s = \max(0, \min(1, 1 - d))$.
+
+\subsection{Dual Retrieval Pipeline}
+Given query $q$, embeddings $\mathbf{q}=\phi(q)$ are queried against both the active user collection and the scheme collection. Retrieved candidate sets are merged and ranked:
+\begin{equation}
+R_q = \mathrm{Top}_{20}\Big(\bigcup_{I \in \mathcal{I}} \mathrm{TopK}(\mathbf{q}, I, \min(20, |I|))\Big)
+\end{equation}
+
+\section{Experimental Setup and Results}
+
+\subsection{Experimental Setup}
+Experiments evaluate the retrieval pipeline on a synthetic test corpus comprising six multi-page citizen documents (resume, Class 10/12 marksheets, B.Tech grade cards, income certificate, domicile certificate) totaling 10 chunks, one image-only PDF (to test skip logic), and 20 parallel English and Hindi scheme queries. Table~\ref{tab:setup} summarizes parameters.
+
+\begin{table}[t]
+\caption{Experimental Configuration}
+\label{tab:setup}
+\centering
+\small
+\begin{tabular}{p{2.8cm}p{4.6cm}}
+\hline
+\textbf{Parameter} & \textbf{Value}\\
+\hline
+Chunk size / overlap & 500 / 50 characters\\
+Retrieval depth & $k=20$, merged across indexes\\
+Similarity metric & Cosine similarity, $s = 1 - d$\\
+User test corpus & 6 text PDFs, 8 pages, 10 chunks; 1 scanned (skipped)\\
+Scheme corpus & 10 schemes, 20 chunks (1 EN + 1 HI per scheme)\\
+Evaluation queries & 20 scheme (EN/HI parallel), 20 answerable, 10 absent\\
+Hardware & Intel x86-64, CPU-only local execution\\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Results}
+Table~\ref{tab:results} reports the retrieval performance comparing the lexical hashing baseline across 5 salted seeds against the measured \texttt{all-MiniLM-L6-v2} model.
+
+\begin{table*}[t]
+\caption{Retrieval Results by Embedding Backend}
+\label{tab:results}
+\centering
+\small
+\begin{tabular}{p{6.8cm}p{4.4cm}p{4.4cm}}
+\hline
+\textbf{Measure} & \textbf{Hashing fallback, mean (min--max), 5 seeds} & \textbf{all-MiniLM-L6-v2 (authors' run)} \\
+\hline
+Scheme retrieval, English: Hit@1 & 0.74 (0.55--0.85) & \textbf{1.00} \\
+Scheme retrieval, English: Hit@5 & 0.94 (0.90--1.00) & \textbf{1.00} \\
+Scheme retrieval, English: MRR & 0.83 (0.71--0.89) & \textbf{1.00} \\
+Scheme retrieval, Hindi: Hit@1 & 0.45 (0.35--0.50) & \textbf{0.20} \\
+Scheme retrieval, Hindi: Hit@5 & 0.89 (0.85--0.95) & \textbf{0.60} \\
+Scheme retrieval, Hindi: MRR & 0.65 (0.60--0.70) & \textbf{0.38} \\
+Page retrieval, user index only: Hit@1 & 0.50 (0.40--0.55) & \textbf{0.85} \\
+Page retrieval, user index only: MRR & 0.66 (0.59--0.70) & \textbf{0.93} \\
+Page retrieval, both indexes: Hit@1 & 0.34 (0.25--0.40) & \textbf{0.85} \\
+Page retrieval, both indexes: MRR & 0.48 (0.42--0.51) & \textbf{0.93} \\
+AUROC, answerable vs.\ absent (top-1 score) & 0.75 (0.61--0.82) & \textbf{0.87} \\
+Retrieval latency, median (ms) & 385 (344--459) & \textbf{35} \\
+\hline
+\end{tabular}
+\end{table*}
+
+\subsection{Discussion}
+The measured MiniLM results reveal notable performance characteristics:
+
+\textbf{1) English Scheme Retrieval:} Dense sentence representations achieve a perfect \textbf{1.00 Hit@1, Hit@5, and MRR 1.00} on English scheme inquiries, eliminating the 26\% error rate observed in the lexical hashing fallback.
+
+\textbf{2) Cross-Lingual Hindi Retrieval Disparity:} For Hindi queries, MiniLM drops to \textbf{0.20 Hit@1} (MRR 0.38), underperforming the lexical hashing baseline (0.45 Hit@1). Because MiniLM is an English-focused transformer, its subword tokenizer does not align Devanagari query representations well with mixed-language scheme chunks, whereas lexical hashing matched Hindi titles directly. This demonstrates empirically that English-centric dense embeddings cannot reliably support regional Indian language retrieval, necessitating native multilingual embeddings.
+
+\textbf{3) Immunity to Cross-Index Displacement:} Under lexical hashing, adding the scheme index degraded user document Hit@1 from 0.50 down to 0.34 (MRR 0.48), because keyword-dense scheme passages displaced personal records. In contrast, MiniLM maintains a stable \textbf{0.85 Hit@1 and 0.93 MRR} across both conditions. The distinct semantic clusterings of personal credentials and scheme descriptions prevent mutual interference.
+
+\textbf{4) Absent Query Detection and Latency:} Top-1 score separation improves from AUROC 0.75 to \textbf{0.87} (best threshold accuracy 83.3\% at $s=0.33$). Median CPU retrieval latency dropped from 385\,ms to \textbf{35\,ms}, providing responsive, real-time query resolution.
+
+\section{Limitations and Future Work}
+\subsection{Limitations}
+\begin{enumerate}
+\item \textbf{End-to-End Evaluation:} Answer factual faithfulness and citation correctness depend on language model generation and remain to be evaluated with real applicant cohorts.
+\item \textbf{Cross-Lingual Representation:} English-centric embeddings underperform on Devanagari script queries.
+\item \textbf{Scanned Document Barrier:} PDFs without embedded text layers require OCR preprocessing to avoid silent omission.
+\item \textbf{API Security:} Transmitting keys via URL query parameters poses logging risks; authenticated headers should be enforced.
+\end{enumerate}
+
+\subsection{Future Work}
+Future enhancements include: (1) integrating native Indic multilingual embeddings (e.g., Multilingual-E5, IndicBERT); (2) integrating local OCR engines (Tesseract) for scanned marksheets; (3) introducing source-specific retrieval quotas; and (4) deploying on-device small language models (SLMs) for zero-data-egress operation.
+
+\section{Conclusion}
+This paper presented the AI Citizen Assistant, combining runtime personal document ingestion with a bilingual welfare scheme index under grounded RAG prompting. Empirical evaluation confirmed that while local dense embeddings (all-MiniLM-L6-v2) achieve perfect English scheme retrieval (1.00 MRR) and robust personal document isolation (0.93 MRR), they exhibit cross-lingual degradation on Hindi queries, underscoring the necessity of dedicated Indic multilingual models. Idempotent indexing and header-based credential passing were established to ensure operational stability and security.
+
+\section*{Code Availability}
+The complete source code, evaluation test harnesses, synthetic corpora, and benchmarks are available at:
+\url{https://github.com/surendras4460-boop/AI-Citizen-Assistant} under the MIT License.
+
+\section*{Acknowledgment}
+The authors thank their supervisor, Mr. Hilal Ahmad Shah, School of Computer Science and Engineering, IILM University, for valuable mentorship throughout this research.
+
+\begin{thebibliography}{00}
+\bibitem{ji2023} Z. Ji et al., ``Survey of hallucination in natural language generation,'' \textit{ACM Computing Surveys}, vol. 55, no. 12, 2023.
+\bibitem{lewis2020} P. Lewis et al., ``Retrieval-augmented generation for knowledge-intensive NLP tasks,'' in \textit{Proc. NeurIPS}, 2020.
+\bibitem{gao2023} Y. Gao et al., ``Retrieval-augmented generation for large language models: A survey,'' \textit{arXiv preprint arXiv:2312.10997}, 2023.
+\bibitem{reimers2019} N. Reimers and I. Gurevych, ``Sentence-BERT: Sentence embeddings using Siamese BERT-networks,'' in \textit{Proc. EMNLP-IJCNLP}, 2019.
+\bibitem{wang2020} W. Wang et al., ``MiniLM: Deep self-attention distillation for task-agnostic compression of pre-trained transformers,'' in \textit{Proc. NeurIPS}, 2020.
+\bibitem{sreevidya2026} P. R. Sreevidya and R. P. Rajeshwari, ``AI-powered study assistant using retrieval-augmented generation (RAG),'' \textit{IJARSCT}, vol. 6, no. 1, p. 379, 2026.
+\bibitem{mukazhanov2026} N. Mukazhanov et al., ``Building a multilingual AI legal assistant using retrieval-augmented generation: A case study on the legal system of Kazakhstan,'' \textit{Computers}, vol. 15, no. 9, p. 556, 2026.
+\bibitem{mohamed2025} T. N. Mohamed, S. Pudaruth, and I. Coste-Maniere, ``A chatbot for the legal sector of Mauritius using retrieval-augmented generation,'' \textit{IJACSA}, vol. 16, no. 2, p. 120, 2025.
+\bibitem{sandeep2026} K. Sandeep et al., ``AI-powered legal assistance platform for automated document analysis and citizen-centric legal support,'' in \textit{Proc. WSNUCA}, Springer, 2026, pp. 502--513.
+\bibitem{vishwaanth2026} M. Vishwaanth, T. Rudranpathi, and V. Balaji, ``RAG-based legal/government scheme assistant,'' \textit{IJSREM}, vol. 10, no. 4, 2026.
+\bibitem{ali2026} M. Ali et al., ``Talk to open data: Enabling user interaction with open government data using LLMs, RAG and smart agent technologies,'' in \textit{Information Systems}, Springer, 2026, pp. 15--31.
+\bibitem{es2024} S. Es, J. James, L. Espinosa-Anke, and S. Schockaert, ``RAGAS: Automated evaluation of retrieval augmented generation,'' in \textit{Proc. EACL}, 2024.
+\end{thebibliography}
+
+\end{document}

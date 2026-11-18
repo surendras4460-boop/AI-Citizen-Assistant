@@ -221,9 +221,14 @@ with tab_schemes:
         with st.expander(f"{title}  ·  {core._clean(r.get('schemeCategory'))}"):
             body = core._clean(r.get("details_hi")) if lang == "हिंदी" else core._clean(r.get("details"))
             st.write(body or core._clean(r.get("details")))
-            for label, field in [("💰 Benefits", "benefits"), ("✅ Eligibility", "eligibility"),
-                                 ("📝 How to apply", "application"), ("📄 Documents required", "documents")]:
-                val = core._clean(r.get(field))
+            fields_config = [
+                ("💰 Benefits" if lang != "हिंदी" else "💰 मुख्य लाभ", "benefits_hi" if lang == "हिंदी" else "benefits", "benefits"),
+                ("✅ Eligibility" if lang != "हिंदी" else "✅ पात्रता मानदंड", "eligibility_hi" if lang == "हिंदी" else "eligibility", "eligibility"),
+                ("📝 How to apply" if lang != "हिंदी" else "📝 आवेदन प्रक्रिया", "application_hi" if lang == "हिंदी" else "application", "application"),
+                ("📄 Documents required" if lang != "हिंदी" else "📄 आवश्यक दस्तावेज़", "documents_hi" if lang == "हिंदी" else "documents", "documents"),
+            ]
+            for label, primary_field, fallback_field in fields_config:
+                val = core._clean(r.get(primary_field)) or core._clean(r.get(fallback_field))
                 if val:
                     st.markdown(f"**{label}**  \n{val}")
             if st.button("Ask the assistant about this scheme", key=f"ask_{r.name}"):
